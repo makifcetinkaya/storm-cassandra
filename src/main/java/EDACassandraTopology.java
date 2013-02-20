@@ -16,7 +16,7 @@ public class EDACassandraTopology {
 	
 	private static final String QUEUE_HOST = "localhost";
 	private static final String QUEUE_NAME = "eda_queue";
-	private static final int PORT = 2229;
+	private static final int QUEUE_PORT = 2229;
 	
 	private static final String CASS_HOST_AND_PORT = "localhost:9160";
 	private static final String CASS_KEYSPACE_NAME = "EDA";
@@ -45,7 +45,7 @@ public class EDACassandraTopology {
 		config.put(EDACassandraBolt.REPLICATION_FACTOR, REP_FACTOR);
 		
 		TopologyBuilder builder = new TopologyBuilder();
-		EDAChunkSpout kts = new EDAChunkSpout(QUEUE_HOST, PORT, QUEUE_NAME);
+		EDAChunkSpout kts = new EDAChunkSpout(QUEUE_HOST, QUEUE_PORT, QUEUE_NAME);
 		builder.setSpout("pktspout", kts, 1);
 		EDASmoothBolt esb = new EDASmoothBolt();
 		builder.setBolt("smoother", esb ,NUM_OF_WORKERS).shuffleGrouping("pktspout");
@@ -62,6 +62,7 @@ public class EDACassandraTopology {
 		conf.setMaxSpoutPending(MAX_SPOUT_PENDING);
 		
 		conf.setDebug(true);
+		System.out.println(conf);
 //		try {
 //			StormSubmitter.submitTopology("simple", conf, topology);
 //		} catch (AlreadyAliveException e) {

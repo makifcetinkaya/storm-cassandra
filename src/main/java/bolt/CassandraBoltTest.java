@@ -53,7 +53,7 @@ public class CassandraBoltTest {
 	
 	private static KestrelThriftClient _kestrelClient;
 	private static String _kestrelHost = "localhost";
-	private static int _kestrelPort = 9160;
+	private static int _kestrelPort = 2229;
 	private static final String QUEUE_NAME = "eda_queue";
 	
 	public static final int TIMEOUT = 50;
@@ -122,9 +122,11 @@ public class CassandraBoltTest {
 	private static void insertRawEDAData(ColumnFamilyTemplate<String, String> template, String rowKey, String metadata, byte[] data){
 		ColumnFamilyUpdater<String, String> updater = template.createUpdater();
 		updater.addKey(rowKey);
-		updater.setString("data", "www.datastax.com");
+		updater.setByteArray(DATA_COLUMN_NAME, data);
+		updater.setString(META_COLUMN_NAME, metadata);
 
 		try {
+			System.out.println("updating database");
 		    template.update(updater);
 		} catch (HectorException e) {
 			System.out.println("prob adding");
@@ -141,20 +143,26 @@ public class CassandraBoltTest {
 		prepare();
 		try {
 			_kestrelClient = new KestrelThriftClient(_kestrelHost, _kestrelPort);
-			try {
-				List<Item> items = _kestrelClient.get(QUEUE_NAME, MAX_ITEMS, TIMEOUT, AUTO_ABORT_MSEC);
-				//System.out.println("num of items:"+items.size());
-				for(Item item: items){
-					byte[] packet = item.get_data();
-					assert isCorrHeader(Arrays.copyOfRange(packet, 0, 4));
-					byte[] metadata = Arrays.copyOfRange(packet, 4, META_SIZE);
-					byte[] data = Arrays.copyOfRange(packet, META_SIZE, META_SIZE+DATA_SIZE);
-					String metastr = cassTest_MetaArrToStr(metadata);
-					
+			while(true){
+				try {
+					List<Item> items = _kestrelClient.get(QUEUE_NAME, MAX_ITEMS, TIMEOUT, AUTO_ABORT_MSEC);
+					System.out.println("num of items:"+items.size());
+					Thread.sleep(1000);
+					for(Item item: items){
+						byte[] packet = item.get_data();
+						assert isCorrHeader(Arrays.copyOfRange(packet, 0, 4));
+						byte[] metadata = Arrays.copyOfRange(packet, 4, META_SIZE);
+						byte[] data = Arrays.copyOfRange(packet, META_SIZE, META_SIZE+DATA_SIZE);
+						String metastr = cassTest_MetaArrToStr(metadata);
+						insertRawEDAData(_colFamTemplate, metastr, metastr, data);
+					}
+				} catch (TException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-			} catch (TException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
 		} catch (TException e) {
 			// TODO Auto-generated catch block
